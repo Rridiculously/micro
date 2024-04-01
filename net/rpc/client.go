@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"net"
@@ -101,29 +100,12 @@ func (c *Client) Send(data []byte) ([]byte, error) {
 	defer func() {
 		_ = conn.Close()
 	}()
-	reqLen := len(data)
-	//构建响应数据
-	//data=respLen + respData
-	req := make([]byte, numOfLengthBytes+reqLen)
-
-	//把数据写进去前八个字节
-	binary.BigEndian.PutUint64(req[:numOfLengthBytes], uint64(reqLen))
-	copy(req[numOfLengthBytes:], data)
+	req := EncodeMsg(data)
 	_, err = conn.Write(req)
 
-	lenBs := make([]byte, numOfLengthBytes)
-	_, err = conn.Read(lenBs)
-
 	if err != nil {
 		return nil, err
 	}
-	//响应有多长？
-	length := binary.BigEndian.Uint64(lenBs)
-	respBs := make([]byte, length)
-	_, err = conn.Read(respBs)
 
-	if err != nil {
-		return nil, err
-	}
-	return respBs, nil
+	return ReadMsg(conn)
 }

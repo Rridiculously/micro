@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"net"
@@ -44,18 +43,7 @@ func (s *Server) Start(network, address string) error {
 }
 func (s *Server) handleConn(conn net.Conn) error {
 	for {
-		//lenBs长度字段的字节表示
-		lenBs := make([]byte, numOfLengthBytes)
-		_, err := conn.Read(lenBs)
-
-		if err != nil {
-			return err
-		}
-		//消息有多长？
-		length := binary.BigEndian.Uint64(lenBs)
-		reqBs := make([]byte, length)
-		_, err = conn.Read(reqBs)
-
+		reqBs, err := ReadMsg(conn)
 		if err != nil {
 			return err
 		}
@@ -64,14 +52,7 @@ func (s *Server) handleConn(conn net.Conn) error {
 			//业务err
 			return err
 		}
-		respLen := len(respData)
-		//构建响应数据
-		//打他=respLen + respData
-		res := make([]byte, numOfLengthBytes+respLen)
-
-		//把数据写进去前八个字节
-		binary.BigEndian.PutUint64(res[:numOfLengthBytes], uint64(respLen))
-		copy(res[numOfLengthBytes:], respData)
+		res := EncodeMsg(respData)
 		_, err = conn.Write(res)
 		if err != nil {
 			return err
